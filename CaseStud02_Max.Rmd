@@ -1,0 +1,109 @@
+---
+title: "CaseStady2_Max"
+author: "Max Moro"
+date: "November 26, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(openxlsx)
+library(reshape2)
+library(forcats)
+library(scales)
+library(xgboost)
+library(caret)
+```
+
+```{r read}
+dataOri=read.xlsx('data/CaseStudy2-data.xlsx',sheet=1)
+```
+
+```{r transformation}
+#checking for na - No NAs in the columns
+which(sapply(dataOri,function(x){any(is.na(x))}))
+#check for columns with one factor - 3 columns
+oneElement = names(which(sapply(dataOri,function(x){n_distinct(x)==1})))
+print(oneElement)
+data=dataOri %>% select(-!!oneElement)
+```
+# Analysing which numerical Varible has a different mean between Attrition and non Attrition
+
+```{r  fig.height=8, fig.width=8}
+#find group with statistical difference
+ttestOut=as.character()
+colNum = names(which(sapply(data,is.numeric)))
+for (col in colNum){
+  test=t.test(data[data$Attrition=='Yes',col],data[data$Attrition=='No',col],alternative = 'two.sided',var.equal=F)
+  if(test$p.value<0.01) ttestOut = c(ttestOut,col)
+}
+
+message('following variables have a differnet mean between Attrition and Non-Attrition')
+temp=reshape2::melt(data,id.vars='Attrition',measure.vars=ttestOut)
+ggplot(data=temp,aes(x=Attrition,y=value))+
+  geom_boxplot() +
+  facet_wrap(~variable,scales='free',ncol=4)
+  
+```
+
+# Analysing distribution of attrition between categorical variable
+
+```{r  fig.height=5, fig.width=10}
+#find group with statistical difference
+
+ttestOut=as.character()
+colText = names(which(sapply(select(data,-Attrition),is.character)))
+
+temp=reshape2::melt(data,id.vars='Attrition',measure.vars=colText)  %>%
+  group_by(variable,value,Attrition) %>%
+  summarise(count=n()) %>%
+  group_by(variable,value) %>%
+  mutate(percent=count/sum(count) ) %>%
+  filter(Attrition=='Yes') %>%
+  arrange(percent)
+
+#ggplot sort breaks if we have same value across facets.
+#to help gplot sort we need to the value+variable insetead of value if there are more than one acorss variables
+temp = temp %>% group_by(value)  %>% mutate(cnt = n_distinct(variable)) %>%
+  ungroup() %>% mutate(name=ifelse(cnt>1,paste0(value,' (',(substr(variable,1,1)),')'),value))
+
+temp$name=forcats::fct_reorder(temp$name,temp$percent )
+#temp$variable=forcats::fct_reorder(temp$variable,temp$percent)
+
+ggplot(data=temp,aes(x=name,y=percent))+
+  geom_bar(stat='identity',fill='LightBlue') +
+  coord_flip()+
+  geom_text(aes(label=percent(percent)),size=3,hjust=-.1,color='#555555')+
+  facet_wrap(~variable,scales='free_y',ncol=3) +
+  ggplot2::scale_y_continuous(labels=percent_format(accuracy = 1),limits=c(0,max(temp$percent+.1)),name='Attrition Rate') +
+  ggplot2::scale_x_discrete(name='Group')
+```
+
+
+# xgboost (forest)
+
+```{r fig.height=8}
+set.seed(1701)
+
+grid_default <- expand.grid(nrounds = 100
+                            ,max_depth = 6
+                            ,eta = .3
+                            ,gamma = 0
+                            ,colsample_bytree = 1
+                            ,min_child_weight = 1
+                            ,subsample = 1
+)
+
+train_control <- caret::trainControl(method = "none",verboseIter = FALSE,allowParallel = TRUE)
+
+xgb <- caret::train(Attrition ~ . ,data=data
+                    ,trControl = train_control,tuneGrid = grid_default
+                    ,method = "xgbTree",verbose = TRUE
+)
+
+plot(caret::varImp(xgb))
+
+```
+
