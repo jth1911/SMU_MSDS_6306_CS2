@@ -15,11 +15,23 @@ library(forcats)
 library(scales)
 library(xgboost)
 library(caret)
+# log non nromal varaibles
+
+#1) show correlations between variable
+#2) choices for variables (3-5)
+#income,
 ```
 
+
+# Reading  Data Source
+
 ```{r read}
-dataOri=read.xlsx('data/CaseStudy2-data.xlsx',sheet=1)
+dataOri=read.xlsx('data/CaseStudy2-data.xlsx',sheet=1) %>%
+  mutate(EmployeeNumber = as.character(EmployeeNumber))
+
 ```
+
+# Transformation
 
 ```{r transformation}
 #checking for na - No NAs in the columns
@@ -29,32 +41,84 @@ oneElement = names(which(sapply(dataOri,function(x){n_distinct(x)==1})))
 print(oneElement)
 data=dataOri %>% select(-!!oneElement)
 ```
-# Analysing which numerical Varible has a different mean between Attrition and non Attrition
+# Analysis
 
-```{r  fig.height=8, fig.width=8}
+## Numerical Variables
+
+### Distribution of Normal Values
+
+```{r  fig.height=7, fig.width=8}
 #find group with statistical difference
-ttestOut=as.character()
+
 colNum = names(which(sapply(data,is.numeric)))
+
+temp=reshape2::melt(data,id.vars='Attrition',measure.vars=colNum) %>%
+  group_by(variable) %>%
+  mutate(density = dnorm(value, mean(value), sd(value))) %>% ungroup()
+
+ggplot(data=temp,aes(x=value))+
+  geom_histogram(aes(y=..density..),color='gray',bins = 20) +
+  geom_line(aes(y = density),   colour = "red") +
+  #stat_function(fun = dnorm, args = list(mean = mean(..count..), sd = sd(..count..)),color='red')+
+  facet_wrap(~variable,scales='free',ncol=4) +
+  theme_minimal()
+```
+
+### Applying Log to Some Variables
+
+Following Variable have been transformed with Log function to fit a normal distribution.
+
+```{r  fig.height=5, fig.width=8}
+
+#colsToLog = c('DistanceFromHome','MonthlyIncome','PercentSalaryHike','TotalWorkingYears','YearsAtCompany','YearsInCurrentRole'            ,'YearsSinceLastPromotion','YearsWithCurrManager')
+# ggplot(data=filter(temp,variable %in% colsToLog),aes(x=value))+
+#   geom_histogram(aes(y=..density..),fill='gray',bins = 20) +
+#   facet_wrap(~variable,scales='free',ncol=4) +
+#   ggplot2::ggtitle('Original Values')+
+#   theme_minimal()
+
+
+#Testing the Log
+colsToLog = c('MonthlyIncome','TotalWorkingYears','YearsAtCompany','YearsInCurrentRole','YearsSinceLastPromotion','YearsWithCurrManager')
+
+temp$log = log(temp$value +.01)
+
+ggplot(data=filter(temp,variable %in% colsToLog),aes(x=log))+
+  geom_histogram(aes(y=..density..),fill='blue',bins = 20) +
+  facet_wrap(~variable,scales='free',ncol=4) +
+  ggplot2::ggtitle('Logged Values')+
+  theme_minimal()
+
+#Applying the log 
+colsLog = paste0(colsToLog,'_log')
+dataLog=mutate_at(data,colsToLog,.funs=funs(log=log(. + 0.01))) %>% select(-colsToLog)
+
+```
+
+### Variable with different mean across Attrition 
+
+```{r}
+ttestOut=as.character()
+colNum = names(which(sapply(dataLog,is.numeric)))
 for (col in colNum){
-  test=t.test(data[data$Attrition=='Yes',col],data[data$Attrition=='No',col],alternative = 'two.sided',var.equal=F)
+  test=t.test(dataLog[dataLog$Attrition=='Yes',col],dataLog[dataLog$Attrition=='No',col],alternative = 'two.sided',var.equal=F)
   if(test$p.value<0.01) ttestOut = c(ttestOut,col)
 }
 
 message('following variables have a differnet mean between Attrition and Non-Attrition')
-temp=reshape2::melt(data,id.vars='Attrition',measure.vars=ttestOut)
+temp=reshape2::melt(dataLog,id.vars='Attrition',measure.vars=ttestOut)
 ggplot(data=temp,aes(x=Attrition,y=value))+
   geom_boxplot() +
   facet_wrap(~variable,scales='free',ncol=4)
-  
 ```
 
-# Analysing distribution of attrition between categorical variable
+## Categorical Variables
 
 ```{r  fig.height=5, fig.width=10}
 #find group with statistical difference
 
 ttestOut=as.character()
-colText = names(which(sapply(select(data,-Attrition),is.character)))
+colText = names(which(sapply(select(data,-Attrition,-EmployeeNumber),is.character)))
 
 temp=reshape2::melt(data,id.vars='Attrition',measure.vars=colText)  %>%
   group_by(variable,value,Attrition) %>%
@@ -82,9 +146,11 @@ ggplot(data=temp,aes(x=name,y=percent))+
 ```
 
 
-# xgboost (forest)
+## Importance of Variables
 
-```{r fig.height=8}
+Using XGBoost model 
+
+```{r}
 set.seed(1701)
 
 grid_default <- expand.grid(nrounds = 100
@@ -97,13 +163,101 @@ grid_default <- expand.grid(nrounds = 100
 )
 
 train_control <- caret::trainControl(method = "none",verboseIter = FALSE,allowParallel = TRUE)
+data2=data  %>% select(-EmployeeNumber)
 
-xgb <- caret::train(Attrition ~ . ,data=data
+xgb <- caret::train(Attrition ~ . ,data=data2
                     ,trControl = train_control,tuneGrid = grid_default
                     ,method = "xgbTree",verbose = TRUE
 )
 
-plot(caret::varImp(xgb))
+plot(caret::varImp(xgb),top=25)
 
 ```
 
+# Trends
+
+```{r eval=FALSE, fig.height=15, include=FALSE}
+colNum = names(which(sapply(data,is.numeric)))
+facts = c('BusinessTravel','Department','EducationField','Gender','JobRole','MaritalStatus','OverTime')
+
+temp=reshape2::melt(data,id.vars=facts,measure.vars=colNum) 
+fact=facts[2]
+for (fact in facts){
+  ggplot2::ggplot(data=temp,aes_string(x=fact,y='value')) +
+    geom_boxplot()  +
+    facet_wrap(~variable,scales = 'free',ncol=3) +
+    coord_flip() + 
+    ggtitle(fact)
+}
+
+```
+```{r}
+plotTrend = function(data,x,y){
+  data2=data 
+  data2$x=forcats::fct_reorder(data[[x]],data[[y]],.fun=median)
+  data2$y=data2[[y]]
+  
+  ggplot2::ggplot(data=data2,aes(x=x,y=y)) +
+  geom_boxplot() +
+  coord_flip()
+}
+
+plotSurvey = function(data,x,y){
+  
+  data2=data 
+  data2$x=forcats::fct_reorder(data[[x]],data[[y]],.fun=median)
+  data2$y=as.character(data2[[y]])
+  data2 = data2 %>% group_by(x,y)  %>%
+    summarise(count=n()) %>%
+    group_by(x) %>%
+    mutate(perc=count/sum(count)) %>%
+    ungroup()
+  
+  ggplot2::ggplot(data=data2,aes(x=x,y=y,size=perc,label=percent(perc,1))) +
+  geom_text() +
+  coord_flip()
+}
+```
+
+
+## Marketing Degree is the most paid group, HR Degree is the least
+```{r}
+plotTrend(data,'EducationField','MonthlyIncome')
+```
+
+## Manager are the most Senior poeple, Sales Repr are the youngest
+```{r}
+plotTrend(data,'JobRole','Age')
+```
+
+
+
+## Manager works closer to work than Sales executive
+```{r}
+plotTrend(data,'JobRole','DistanceFromHome')
+```
+
+
+
+## Manager Monthly Rate is higher
+```{r}
+plotTrend(data,'JobRole','MonthlyRate')
+```
+
+
+## Manager Earns vastly more than other groups, Sales Repr have the lowest Monthly Income salary
+```{r}
+plotTrend(data,'JobRole','MonthlyIncome')
+```
+
+
+
+## Manager Monthly Rate is higher
+```{r}
+plotTrend(data,'JobRole','YearsAtCompany')
+```
+
+## HR has the lowest satisfaction
+```{r}
+plotSurvey(data,'JobRole','JobSatisfaction')
+```
