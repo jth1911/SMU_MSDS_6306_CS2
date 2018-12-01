@@ -15,11 +15,31 @@ library(forcats)
 library(scales)
 library(xgboost)
 library(caret)
-# log non nromal varaibles
 
-#1) show correlations between variable
-#2) choices for variables (3-5)
-#income,
+# MonthlyIncom
+
+# Tenure
+  # Years at company
+  # Age
+  # YearsInCurrentLog
+  # TotalWorkingYers
+  
+# Satisfaction
+  #job Satisfaction
+  #Environemtn Statisfaciotn
+
+# box  Plot Age and Job Level
+
+# charts categorical
+  #Businserr TRavle
+    # across all jobs.. 
+  #Overtime (burnout) - no correlation with age and job level (boxplot )
+    # Boxplot overtime and age
+    # Boxplot overtime and JobLevel
+  #Job Role
+
+
+
 ```
 
 
@@ -32,11 +52,10 @@ dataOri=read.xlsx('data/CaseStudy2-data.xlsx',sheet=1) %>%
 ```
 
 # Transformation
-
 ```{r transformation}
 #checking for na - No NAs in the columns
 which(sapply(dataOri,function(x){any(is.na(x))}))
-#check for columns with one factor - 3 columns
+#check for columns with one factor -> 3 columns
 oneElement = names(which(sapply(dataOri,function(x){n_distinct(x)==1})))
 print(oneElement)
 data=dataOri %>% select(-!!oneElement)
@@ -82,14 +101,14 @@ Following Variable have been transformed with Log function to fit a normal distr
 colsToLog = c('MonthlyIncome','TotalWorkingYears','YearsAtCompany','YearsInCurrentRole','YearsSinceLastPromotion','YearsWithCurrManager')
 
 temp$log = log(temp$value +.01)
-
+#plot of logged values
 ggplot(data=filter(temp,variable %in% colsToLog),aes(x=log))+
   geom_histogram(aes(y=..density..),fill='blue',bins = 20) +
   facet_wrap(~variable,scales='free',ncol=4) +
   ggplot2::ggtitle('Logged Values')+
   theme_minimal()
 
-#Applying the log 
+#Applying the log to the main dataframe
 colsLog = paste0(colsToLog,'_log')
 dataLog=mutate_at(data,colsToLog,.funs=funs(log=log(. + 0.01))) %>% select(-colsToLog)
 
@@ -105,21 +124,21 @@ for (col in colNum){
   if(test$p.value<0.01) ttestOut = c(ttestOut,col)
 }
 
-message('following variables have a differnet mean between Attrition and Non-Attrition')
+message('following variables have a different mean between Attrition and Non-Attrition')
 temp=reshape2::melt(dataLog,id.vars='Attrition',measure.vars=ttestOut)
 ggplot(data=temp,aes(x=Attrition,y=value))+
   geom_boxplot() +
-  facet_wrap(~variable,scales='free',ncol=4)
+  facet_wrap(~variable,scales='free',ncol=4) +
+  theme_minimal()
 ```
 
 ## Categorical Variables
 
 ```{r  fig.height=5, fig.width=10}
 #find group with statistical difference
-
-ttestOut=as.character()
 colText = names(which(sapply(select(data,-Attrition,-EmployeeNumber),is.character)))
 
+#make the datast vertical to better manage and chart. Also calculating percentages
 temp=reshape2::melt(data,id.vars='Attrition',measure.vars=colText)  %>%
   group_by(variable,value,Attrition) %>%
   summarise(count=n()) %>%
@@ -134,7 +153,8 @@ temp = temp %>% group_by(value)  %>% mutate(cnt = n_distinct(variable)) %>%
   ungroup() %>% mutate(name=ifelse(cnt>1,paste0(value,' (',(substr(variable,1,1)),')'),value))
 
 temp$name=forcats::fct_reorder(temp$name,temp$percent )
-#temp$variable=forcats::fct_reorder(temp$variable,temp$percent)
+
+message("Distribution of Attrition = Yes, across categorical values")
 
 ggplot(data=temp,aes(x=name,y=percent))+
   geom_bar(stat='identity',fill='LightBlue') +
@@ -142,7 +162,8 @@ ggplot(data=temp,aes(x=name,y=percent))+
   geom_text(aes(label=percent(percent)),size=3,hjust=-.1,color='#555555')+
   facet_wrap(~variable,scales='free_y',ncol=3) +
   ggplot2::scale_y_continuous(labels=percent_format(accuracy = 1),limits=c(0,max(temp$percent+.1)),name='Attrition Rate') +
-  ggplot2::scale_x_discrete(name='Group')
+  ggplot2::scale_x_discrete(name='Group') +
+  theme_minimal()
 ```
 
 
@@ -177,6 +198,7 @@ plot(caret::varImp(xgb),top=25)
 # Trends
 
 ```{r eval=FALSE, fig.height=15, include=FALSE}
+#This code is only used to discover trends, manually. Not needed for the final report
 colNum = names(which(sapply(data,is.numeric)))
 facts = c('BusinessTravel','Department','EducationField','Gender','JobRole','MaritalStatus','OverTime')
 
@@ -187,23 +209,33 @@ for (fact in facts){
     geom_boxplot()  +
     facet_wrap(~variable,scales = 'free',ncol=3) +
     coord_flip() + 
-    ggtitle(fact)
+    ggtitle(fact) + 
+    theme_minimal()
 }
 
 ```
+
 ```{r}
+
 plotTrend = function(data,x,y){
+  #function to create a boxplot comparing categorical and numeric columns
   data2=data 
   data2$x=forcats::fct_reorder(data[[x]],data[[y]],.fun=median)
   data2$y=data2[[y]]
   
   ggplot2::ggplot(data=data2,aes(x=x,y=y)) +
-  geom_boxplot() +
-  coord_flip()
+    geom_boxplot(aes(fill=x)) +
+    coord_flip() +
+    xlab(x)+
+    ylab(y)+
+    ggplot2::ggtitle(paste('Comparing',y,'and',x)) +
+    theme_minimal() +
+    scale_y_continuous(labels=comma_format(accuracy=1)) + 
+    scale_fill_brewer(palette='Blues',guide=F)
 }
 
 plotSurvey = function(data,x,y){
-  
+  #function to create a text plot comparing survey data
   data2=data 
   data2$x=forcats::fct_reorder(data[[x]],data[[y]],.fun=median)
   data2$y=as.character(data2[[y]])
@@ -211,12 +243,22 @@ plotSurvey = function(data,x,y){
     summarise(count=n()) %>%
     group_by(x) %>%
     mutate(perc=count/sum(count)) %>%
-    ungroup()
+    ungroup() %>%
+    mutate(color = ifelse(y>=3,-perc,perc))
   
   ggplot2::ggplot(data=data2,aes(x=x,y=y,size=perc,label=percent(perc,1))) +
-  geom_text() +
-  coord_flip()
+    geom_text(aes(color=color)) +
+    coord_flip() +
+    xlab(x)+
+    ylab(y)+
+    ggplot2::ggtitle(paste('Comparing',y,'and',x)) +
+    theme_minimal() + 
+    scale_size_continuous(guide=F) +
+    #scale_color_continuous(guide=F,low='#fcbba1',high='#67000d')
+    scale_color_gradient2(guide=F,low='#006d2c',mid='#ffffff',high='#67000d',midpoint=0)
 }
+
+plotSurvey(data,'JobRole','JobSatisfaction')
 ```
 
 
