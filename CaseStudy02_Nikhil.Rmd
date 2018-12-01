@@ -23,7 +23,7 @@ library(corrgram)
 
 ## Read Data
 ```{r }
-data = read_xlsx("CaseStudy2-data.xlsx")
+data = read_xlsx("data/CaseStudy2-data.xlsx")
 str(data)
 summary(data)
 ```
@@ -105,6 +105,13 @@ x = left$MonthlyIncome
 y = stayed$MonthlyIncome
 plot.stat.test(x,y)
 # Highly Significant
+
+
+pl <- ggplot(data,aes(x=factor(JobLevel),y=Age))
+print(pl + geom_boxplot(aes(fill=factor(JobLevel))))
+
+
+
 ```
 
 ### Job Level
@@ -119,6 +126,11 @@ plot.stat.test(x,y)
 pl <- ggplot(data,aes(x=factor(Attrition)))
 print(pl + geom_bar(aes(fill=factor(JobLevel))) + coord_flip())
 # Very few people in Job Level 4 and 5 leave (find percentages by job level)
+# These are managers, directors, Health Rep who seem to be paid more. - Check correspondingsalary graph form Max's Rmd file
+
+pl <- ggplot(data,aes(x=factor(JobLevel),y=MonthlyIncome))
+print(pl + geom_boxplot(aes(fill=factor(JobLevel))))
+
 ```
 
 
@@ -190,7 +202,14 @@ plot.stat.test(x,y)
 ```{r}
 pl <- ggplot(data,aes(x=factor(BusinessTravel)))
 print(pl + geom_bar(aes(fill=factor(Attrition))))
+
+
+pl <- ggplot(data,aes(x=factor(JobRole)))
+print(pl + geom_bar(aes(fill=factor(BusinessTravel))) + coord_flip())
+
+table(filter(data,JobRole == "Research Scientist")$BusinessTravel)
 #Conclusion: TBD
+
 ```
 
 ### Department
@@ -261,6 +280,12 @@ print(pl + geom_bar(aes(fill=factor(Attrition))) + coord_flip())
 print(pl + geom_bar(aes(fill=factor(OverTime))) + coord_flip()) # not necessarily due to overtime
 print(pl + geom_bar(aes(fill=factor(JobLevel))) + coord_flip())
 
+# Check distribution vs. Age to see if that is a confounding variable
+pl <- ggplot(data,aes(x=factor(JobRole),y=Age))
+print(pl + geom_boxplot(aes(fill=factor(JobRole))) + coord_flip()) 
+
+pl <- ggplot(data,aes(x=factor(JobRole)))
+print(pl + geom_bar(aes(y = (..count..)/sum(..count..), fill=factor(JobLevel))) + coord_flip())
 
 ```
 
@@ -299,6 +324,27 @@ print(pl + geom_bar(aes(fill=factor(Attrition))))
 #   - which department do they come from
 #   - years of experience
 #   - stock
+
+pl <- ggplot(data,aes(x=factor(OverTime),y=JobLevel))
+print(pl + geom_boxplot(aes(fill=factor(OverTime))))
+
+pl <- ggplot(data,aes(x=factor(JobRole)))
+print(pl + geom_bar(aes(y = (..count..)/sum(..count..), fill=factor(OverTime))) + coord_flip())
+
+pl <- ggplot(data,aes(x=factor(OverTime),y=Age))
+print(pl + geom_boxplot(aes(fill=factor(OverTime))))
+
+# Burnout could be a major factor for those who do overtime.
+
+
+```
+
+### Job Satisfaction
+```{r}
+pl <- ggplot(data,aes(x=factor(JobSatisfaction),y=Age))
+print(pl + geom_boxplot(aes(fill=factor(JobSatisfaction))))
+
+# Max's survey plot may be better
 ```
 
 # Future Steps
