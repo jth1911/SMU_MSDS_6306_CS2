@@ -1,6 +1,6 @@
 ---
-title: "CaseStady2_Max"
-author: "Max Moro"
+title: "Case Study 2"
+author: "James Harding, Max Moro, Nikhil Gupta"
 date: "November 26, 2018"
 output: html_document
 ---
@@ -21,28 +21,32 @@ library(knitr)
 # Functions 
 
 ```{r}
-plotTrend = function(data,x,y){
+plotTrend = function(data,x,y,sort=T,title=NULL){
   #function to create a boxplot comparing categorical and numeric columns
   data2=data 
-  data2$x=forcats::fct_reorder(data[[x]],data[[y]],.fun=median)
+  if (sort) data2$x=forcats::fct_reorder(as.character(data[[x]]),data[[y]],.fun=median)
+  if (!sort) data2$x=as.character(data2[[x]])
   data2$y=data2[[y]]
-  
+  yTitle = trimws(gsub('([[:upper:]])', ' \\1', y))
+  xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
   ggplot2::ggplot(data=data2,aes(x=x,y=y)) +
     geom_boxplot(aes(fill=x)) +
     coord_flip() +
-    xlab(x)+
-    ylab(y)+
-    ggplot2::ggtitle(paste('Comparing',y,'and',x)) +
+    xlab(xTitle)+
+    ylab(yTitle)+
+    ggplot2::ggtitle(ifelse(is.null(title),paste('Comparing',yTitle,'and',xTitle),title)) +
     theme_minimal() +
     scale_y_continuous(labels=comma_format(accuracy=1)) + 
     scale_fill_brewer(palette='Blues',guide=F)
 }
 
-plotSurvey = function(data,x,y){
+plotSurvey = function(data,x,y,title=NULL){
   #function to create a text plot comparing survey data
   data2=data 
   data2$x=forcats::fct_reorder(data[[x]],data[[y]],.fun=median)
   data2$y=as.character(data2[[y]])
+  yTitle = trimws(gsub('([[:upper:]])', ' \\1', y))
+  xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
   data2 = data2 %>% group_by(x,y)  %>%
     summarise(count=n()) %>%
     group_by(x) %>%
@@ -53,19 +57,20 @@ plotSurvey = function(data,x,y){
   ggplot2::ggplot(data=data2,aes(x=x,y=y,size=perc,label=percent(perc,1))) +
     geom_text(aes(color=color)) +
     coord_flip() +
-    xlab(x)+
-    ylab(y)+
-    ggplot2::ggtitle(paste('Comparing',y,'and',x)) +
+    xlab(xTitle)+
+    ylab(yTitle)+
+    ggplot2::ggtitle(ifelse(is.null(title),paste('Comparing',yTitle,'\nand',xTitle),title)) +
     theme_minimal() + 
     scale_size_continuous(guide=F) +
     #scale_color_continuous(guide=F,low='#fcbba1',high='#67000d')
     scale_color_gradient2(guide=F,low='#006d2c',mid='#ffffff',high='#67000d',midpoint=0)
 }
 
-plotAttritionBars = function(data,x,sort=T){
+plotAttritionBars = function(data,x,sort=T,title=NULL){
   #function to compare attrition across categories
   data2=data 
   data2$x=as.character(data[[x]])
+  xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
   data2 = data2 %>% 
     group_by(x,Attrition)  %>%
     summarise(count=n()) %>%
@@ -74,27 +79,29 @@ plotAttritionBars = function(data,x,sort=T){
     filter(Attrition=='Yes') %>%
     ungroup() %>%
     arrange(percent)
-  if (sort) data2=    mutate(data2,x=forcats::fct_reorder(x,percent))
+  if (sort) data2$x=  forcats::fct_reorder(data2$x,data2$percent)
   
   ggplot(data=data2,aes(x=x,y=percent,fill=percent))+
     geom_bar(stat='identity') +
     coord_flip()+
     geom_text(aes(label=percent(percent)),size=3,hjust=-.1,color='#a50026')+
     ggplot2::scale_y_continuous(labels=percent_format(accuracy = 1)
-                                ,limits=c(0,max(temp$percent+.1))
+                                ,limits=c(0,max(data2$percent)+.1)
                                 ,name='Attrition Rate') +
-    ggplot2::scale_x_discrete(name=x) +
     scale_fill_gradient(low='#fee8c8',high='#a50026',name='Attrition \n Rate',labels=percent_format(accuracy=1))+
     theme_minimal()+
-    ylab('Attrition Rate')
+    ylab('Attrition Rate') +
+    xlab(xTitle)+
+    ggplot2::ggtitle(ifelse(is.null(title),paste('Attrition Distribution by',xTitle),title)) 
 }
 
-plotBars = function(data,x,y){
+plotBars = function(data,x,y,title=NULL){
   #function to create box plots
   data2=data 
   data2$x=data2[[x]]
   data2$y=as.factor(data2[[y]])
-  
+   yTitle = trimws(gsub('([[:upper:]])', ' \\1', y))
+  xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
   data2 = data2 %>% 
     group_by(x,y)  %>%
     summarise(count=n()) %>%
@@ -107,9 +114,9 @@ plotBars = function(data,x,y){
   ggplot2::ggplot(data=data2,aes(x=x,fill=y,y=percent)) +
     geom_col(stat='individual') +
     coord_flip() +
-    xlab(x)+
+    xlab(xTitle)+
     ylab('% of Workers')+
-    ggplot2::ggtitle(paste('Comparing',y,'and',x)) +
+    ggplot2::ggtitle(ifelse(is.null(title),paste('Comparing',yTitle,'and',xTitle),title)) +
     theme_minimal() +
     scale_fill_brewer(palette='Blues',name=y) + 
     scale_y_continuous(label=percent_format(accuracy = 1))
@@ -171,8 +178,8 @@ temp$log = log(temp$value +.01)
 
 #plot of logged values
 ggplot(data=filter(temp,variable %in% colsToLog),aes(x=log))+
-  geom_histogram(aes(y=..density..),fill='blue',bins = 20) +
-  facet_wrap(~variable,scales='free',ncol=4) +
+  geom_histogram(aes(y=..density..),fill='lightblue',bins = 20) +
+  facet_wrap(~variable,scales='free',ncol=3) +
   ggplot2::ggtitle('Logged Values')+
   theme_minimal() + 
   theme(axis.text=element_text(size=7)
@@ -257,19 +264,24 @@ ggplot(data=temp,aes(x=name,y=percent,fill=percent))+
         )
 ```
 
-# Question 1
+# Three Leading Attrition Factors
 
 *Identify (at least) the top three factors that contribute to turnover.*
 
 ## Money Related Factors
 
 ### Attrition and Monthly Income
-```{r fig.height=3}
-plotTrend(data,'Attrition','MonthlyIncome') + scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'))
-```
-### Total Working Years vs. Monthly Income
 
-People leaving the company have a lower Income, for > 5 Working Years
+People leaving the company have lower salary.
+
+```{r fig.height=3}
+plotTrend(data,'Attrition','MonthlyIncome') +
+  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'),guide=F)
+```
+
+### Experience and Income
+
+Controlling for “Working Years”, people leaving the company still have lower salary
 
 ```{r fig.height=5}
 ggplot(data = data, aes(x = TotalWorkingYears, y = MonthlyIncome, colour = Attrition)) +
@@ -280,114 +292,172 @@ ggplot(data = data, aes(x = TotalWorkingYears, y = MonthlyIncome, colour = Attri
   scale_color_manual(values=c('Yes'='#fc8d59','No'='#91cf60'))
 ```
 
-### Conclusion
+### Stock Options
 
-The more you are paid, less chance of leaving – no surprise here
+- People leaving the company have lower stock options (as expected).
 
-## Age and tenure related
+- Surprising to see employees with Stock Option level = 3 leaving at a higher rate.
 
-### Age
+```{r fig.height=3} 
+plotAttritionBars(data,'StockOptionLevel',sort=F) 
+```
+
+## Age and Tenure 
+
+### Age and Attrition
+
+Younger people tend to leave the compan
 
 ```{r  fig.height=3}
-plotTrend(data,'Attrition','Age')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'))
+plotTrend(data,'Attrition','Age')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'),guide=F)
 ```
 
 ### Marital Status
 
-```{r  fig.height=4}
+Single employees have greater flexibility which could contribute to higher attrition
+
+```{r  fig.height=3}
 plotAttritionBars(data,'MaritalStatus')
 ```
 
 ### Years at Company
 
-```{r fig.height=3}
-plotTrend(data,'Attrition','YearsAtCompany')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'))
+- People with lower tenure have higher attrition.
+
+- This is also true when considering Current Manager and the Current Role
+
+```{r fig.height=3 }
+plotTrend(data,'Attrition','YearsAtCompany')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'),guide=F)
+plotTrend(data,'Attrition','YearsInCurrentRole')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'),guide=F)
+plotTrend(data,'Attrition','YearsWithCurrManager')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'),guide=F)
 ```
-
-
-### Years in Current role
-
-```{r fig.height=3}
-plotTrend(data,'Attrition','YearsInCurrentRole')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'))
-```
-
-### Years With Current Manager
-
-```{r fig.height=3}
-plotTrend(data,'Attrition','YearsWithCurrManager')  +  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'))
-```
-
-### Conclusion
-
-•	Younger employees and less likely to be marries and are not tied to a job as much. More flexible, hence more attrition. 
-
-•	Younger employees are expected to have less years of service, with company, etc.
-
-•	May need to put in programs to retain younger population.
-
-•	At the same time important to note that we should not introduce age discriminatory practices (company is doing good right now in this respect – see job satisfaction results by age – shows no difference)
-
-
 ## Instrinsic Factors
 
-### Job Satisfaction
-
-```{r fig.height=3}
-plotAttritionBars(data,'JobSatisfaction',sort=F)  
-```
-
 ### Job Involvment
+
+- Again, employees who are less involved in their jobs are more likely to leave
 
 ```{r fig.height=3}
 plotAttritionBars(data,'JobInvolvement',sort=F)  
 ```
 
-### Conclusion
+### Job Satisfaction
 
-People who were more satisfied were not likely to leave 
+No surprises here… more attrition for less satisfied employees
 
-## Special Mention
-
-**Burnout** due to overtime was another very important factor and needs to be mentioned. Not sure if it fits into a category here, but we should definitely mention it. Conclusion could be that the company needs to do more to control burnout due to overtime. 
-
-```{r  fig.height=3}
-plotAttritionBars(data,'OverTime')  
+```{r fig.height=3}
+plotAttritionBars(data,'JobSatisfaction',sort=F)
+  
 ```
 
-# Question 2
+### Environment Satisfaction
 
-Learning about any job role specific trends that may exist in the data set
+Again, employees who are less satisfied with the environment are more likely to leave.
 
-## Lab Technicians
+```{r fig.height=3}
+plotAttritionBars(data,'EnvironmentSatisfaction',sort=F)  
+```
 
-Research Scientists and Lab technician were almost equal in all aspects – Age, Job Level, Salary, Travel, Overtime etc. However Lab technicians had a 50% more change of leaving. What might be causing this? Recommendation to management - We need to dig in more to get t root cause
+### Overtime
+
+Employees who do overtime leave at a rate that is 3X higher than those who don’t do overtime
+Burnout could be a factor
+
+```{r fig.height=3}
+plotAttritionBars(data,'OverTime',sort=F)  
+```
+
+### Conclusion
+
+- Factor 1: Money
+    + Lower income leads to higher attrition
+    
+- Factor 2: Age
+    + Younger employees are more flexible (single) and less likely to be tied to a job
+    + Leads to higher attrition
+
+- Factor 3: Intrinsic
+    + Low job involvement, satisfaction, and overtime leads to higher attrition
+
+### Action Plan
+
+- Money Related:
+    + Recommend skewing compensation towards higher performing employees 
+
+- Age and Tenure related
+    + Recommend giving long vesting  period stocks to critical young employees
+    + Dig deeper into why employees with Stock level = 3 are leaving (is it competitive?)
+
+- Intrinsic Factors
+    + Recommend developing mentoring programs to increase job involvement.
+    + Stress and burnout mitigation program for overtime employees
+
+```{r fig.height=3}
+data$AgeCut = cut(data$Age,breaks=c(0,35,60))
+plotTrend(data,'PerformanceRating','MonthlyIncome')
+plotBars(data,'AgeCut','StockOptionLevel') 
+```
+
+# Job Specific Insights
+
+## Lab Technicians vs. Research Scientists
+
+Equal in all aspects - Age, Job Level, Salary, Travel, Overtime, etc.
+
+Lab technicians had 50% more chance of leaving
 
 ```{r fig.height=3}
 plotAttritionBars(data,'JobRole')  
-
 dataLabRes = filter(data,JobRole %in% c('Research Scientist','Laboratory Technician'))
 plotTrend(dataLabRes,'JobRole','Age') 
 plotBars(dataLabRes,'JobRole','JobLevel')
 plotBars(dataLabRes,'JobRole','OverTime') 
+plotTrend(dataLabRes,'JobRole','MonthlyIncome',title='Comparing Job Role \nand Monthly Income')
+
 ```
 
-## Human Resources role
+## Human Resources
 
-HR role seems to be least satisfied in general – does this lead to more attrition (check)
+Least satisfied in general
+
+Why? Explore
+
+- People Aspect
+
+- Environment
+
 
 ```{r fig.height=3}
 plotSurvey(data,'JobRole','JobSatisfaction')
 plotAttritionBars(data,'JobRole')  
-plotAttritionBars(data,'JobSatisfaction')  
+plotAttritionBars(data,'JobSatisfaction',sort=F)  
 ```
 
 ## Sales Reps
 
-Sales rep have high attrition, but may not be necessarily due to travel (Travel vs. Job Role shows other roles travel almost same as sales rep). This is most likely being caused by the younger population in this role.
+- Highest Attrition
+
+- Not necessarily related to travel
+
+- Possibly related to younger population
+
 
 ```{r fig.height=3}
 plotAttritionBars(data,'JobRole')  
-plotBars(data,'JobRole','BusinessTravel')
+plotBars(data,'JobRole','BusinessTravel',title='Comparing Job Role \n and Business Travel')
 plotTrend(data,'JobRole','Age')  
-plotTrend(data,'Attrition','Age')  
 ```
+
+## Summary
+
+- Lab Technician vs. Research Scientist
+    + No obvious reason for higher attrition. More root cause analysis needed.
+
+- Human Resources have high attrition
+    + Likely correlated to lower job  satisfaction
+
+- Sales Rep have highest attrition
+    + Likely correlated to younger age distribution. 
+
+
+
