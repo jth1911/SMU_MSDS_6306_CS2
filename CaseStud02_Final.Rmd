@@ -150,11 +150,14 @@ temp=reshape2::melt(data,id.vars='Attrition',measure.vars=colNum) %>%
   mutate(density = dnorm(value, mean(value), sd(value))) %>% ungroup()
 
 ggplot(data=temp,aes(x=value))+
-  geom_histogram(aes(y=..density..),color='gray',bins = 20) +
+  geom_histogram(aes(y=..density..),fill='#cccccc',bins = 20) +
   geom_line(aes(y = density),   colour = "red") +
   #stat_function(fun = dnorm, args = list(mean = mean(..count..), sd = sd(..count..)),color='red')+
   facet_wrap(~variable,scales='free',ncol=4) +
-  theme_minimal()
+  theme_minimal() + 
+  theme(axis.text=element_text(size=7)
+        ,strip.text=element_text(size=9)
+        )
 ```
 
 ### Applying Log to Some Variables
@@ -171,7 +174,10 @@ ggplot(data=filter(temp,variable %in% colsToLog),aes(x=log))+
   geom_histogram(aes(y=..density..),fill='blue',bins = 20) +
   facet_wrap(~variable,scales='free',ncol=4) +
   ggplot2::ggtitle('Logged Values')+
-  theme_minimal()
+  theme_minimal() + 
+  theme(axis.text=element_text(size=7)
+        ,strip.text=element_text(size=9)
+        )
 
 #Applying the log to the main dataframe
 colsLog = paste0(colsToLog,'_log')
@@ -198,7 +204,10 @@ ggplot(data=temp,aes(x=Attrition,y=value,fill=Attrition))+
   geom_boxplot() +
   facet_wrap(~variable,scales='free',ncol=4) +
   theme_minimal()  +
-  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'),guide=F)
+  scale_fill_manual(values=c('Yes'='#fc8d59','No'='#91cf60'),guide=F)+ 
+  theme(axis.text=element_text(size=8)
+        ,strip.text=element_text(size=8)
+        )
 
 ```
 
@@ -242,7 +251,10 @@ ggplot(data=temp,aes(x=name,y=percent,fill=percent))+
                               ,name='Attrition Rate') +
   ggplot2::scale_x_discrete(name='Group') +
   scale_fill_gradient(low='#fee8c8',high='#a50026',name='Attrition \n Rate',labels=percent_format(accuracy=1))+
-  theme_minimal()
+  theme_minimal()+ 
+  theme(axis.text=element_text(size=7)
+        ,strip.text=element_text(size=9)
+        )
 ```
 
 # Question 1
