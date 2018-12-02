@@ -42,7 +42,6 @@ library(caret)
 
 ```
 
-
 # Reading  Data Source
 
 ```{r read}
@@ -60,11 +59,12 @@ oneElement = names(which(sapply(dataOri,function(x){n_distinct(x)==1})))
 print(oneElement)
 data=dataOri %>% select(-!!oneElement)
 ```
-# Analysis
 
-## Numerical Variables
+# Correlation Analysis
 
-### Distribution of Normal Values
+## Numerical Columns
+
+### Distribution of Numeric Columns
 
 ```{r  fig.height=7, fig.width=8}
 #find group with statistical difference
@@ -195,6 +195,10 @@ plot(caret::varImp(xgb),top=25)
 
 ```
 
+# Question 1
+  
+  Identify (at least) the top three factors that contribute to turnover.
+  
 # Trends
 
 ```{r eval=FALSE, fig.height=15, include=FALSE}
@@ -258,7 +262,6 @@ plotSurvey = function(data,x,y){
     scale_color_gradient2(guide=F,low='#006d2c',mid='#ffffff',high='#67000d',midpoint=0)
 }
 
-plotSurvey(data,'JobRole','JobSatisfaction')
 ```
 
 
