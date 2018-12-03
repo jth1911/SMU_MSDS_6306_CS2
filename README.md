@@ -1,7 +1,7 @@
 # SMU_MSDS_6306_CS2
 
 
-# Prediction Attrition
+# Prediction of Attrition
 
 ## Created by The Borgs (Contributors)
 - [Nikhil Gupta](mailto:guptan@smu.edu)
