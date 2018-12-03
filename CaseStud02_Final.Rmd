@@ -6,8 +6,6 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-##add correlation on the code##
-
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
@@ -149,10 +147,6 @@ data=dataOri %>% select(-!!oneElement)
 ## Determine Highly Correlated Terms
 
 ```{r}
-# corrgram(data,order = TRUE             # here you can pass the whole DF include non numeric fields, it will filter it for you.
-#         , lower.panel = panel.shade # order = TRUE orders the matrix as per PCA
-#          , upper.panel = panel.pie)  # panels indicate how you want upper and lower panels to look like
-
 # remove all factor terms before doing correlation
 data.num <- data[, sapply(data, class) == "numeric"]
 #str(data.num) # check
@@ -167,12 +161,7 @@ data.cor <- data.num %>%
 # Variables correlated by more than 0.7
 arrange(filter(data.cor, value > .7 & value < 1), desc(value))
 
-# Highlyy Correlated (remove ones that should be categorical): 
-#   - MonthlyIncome (keep) <> JobLevel <> TotalWorkingYears
-#   - PerformanceRating <> PercentSalaryHike (keep)
-#   - YearsInCurrentRole <> YearsWithCurrManager <> YearsAtCompany (keep)
 
-# TODO: Do scatter plots for explanatory variables that are continuous instead of just correlations for final presenatation.
 ```
 
 
