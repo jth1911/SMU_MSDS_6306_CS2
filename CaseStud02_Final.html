@@ -250,6 +250,47 @@ print(oneElement)</code></pre>
 </div>
 <div id="exploratory-data-analysis" class="section level1">
 <h1>Exploratory Data Analysis</h1>
+<div id="determine-highly-correlated-terms" class="section level2">
+<h2>Determine Highly Correlated Terms</h2>
+<pre class="r"><code># corrgram(data,order = TRUE             # here you can pass the whole DF include non numeric fields, it will filter it for you.
+#         , lower.panel = panel.shade # order = TRUE orders the matrix as per PCA
+#          , upper.panel = panel.pie)  # panels indicate how you want upper and lower panels to look like
+
+# remove all factor terms before doing correlation
+data.num &lt;- data[, sapply(data, class) == &quot;numeric&quot;]
+#str(data.num) # check
+
+data.cor &lt;- data.num %&gt;% 
+  as.matrix %&gt;%
+  cor %&gt;%
+  as.data.frame %&gt;%
+  tibble::rownames_to_column(var = 'var1') %&gt;%
+  gather(var2, value, -var1)
+
+# Variables correlated by more than 0.7
+arrange(filter(data.cor, value &gt; .7 &amp; value &lt; 1), desc(value))</code></pre>
+<pre><code>##                    var1                 var2     value
+## 1         MonthlyIncome             JobLevel 0.9502999
+## 2              JobLevel        MonthlyIncome 0.9502999
+## 3     TotalWorkingYears             JobLevel 0.7822078
+## 4              JobLevel    TotalWorkingYears 0.7822078
+## 5     PerformanceRating    PercentSalaryHike 0.7735500
+## 6     PercentSalaryHike    PerformanceRating 0.7735500
+## 7     TotalWorkingYears        MonthlyIncome 0.7728932
+## 8         MonthlyIncome    TotalWorkingYears 0.7728932
+## 9  YearsWithCurrManager       YearsAtCompany 0.7692124
+## 10       YearsAtCompany YearsWithCurrManager 0.7692124
+## 11   YearsInCurrentRole       YearsAtCompany 0.7587537
+## 12       YearsAtCompany   YearsInCurrentRole 0.7587537
+## 13 YearsWithCurrManager   YearsInCurrentRole 0.7143648
+## 14   YearsInCurrentRole YearsWithCurrManager 0.7143648</code></pre>
+<pre class="r"><code># Highlyy Correlated (remove ones that should be categorical): 
+#   - MonthlyIncome (keep) &lt;&gt; JobLevel &lt;&gt; TotalWorkingYears
+#   - PerformanceRating &lt;&gt; PercentSalaryHike (keep)
+#   - YearsInCurrentRole &lt;&gt; YearsWithCurrManager &lt;&gt; YearsAtCompany (keep)
+
+# TODO: Do scatter plots for explanatory variables that are continuous instead of just correlations for final presenatation.</code></pre>
+</div>
 <div id="numerical-columns" class="section level2">
 <h2>Numerical Columns</h2>
 <div id="distribution-of-numeric-columns" class="section level3">
