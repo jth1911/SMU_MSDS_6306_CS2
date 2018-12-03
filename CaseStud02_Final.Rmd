@@ -1,7 +1,7 @@
 ---
 title: "Case Study 2"
 author: "James Harding, Max Moro, Nikhil Gupta"
-date: "November 26, 2018"
+date: "December 02, 2018"
 output: html_document
 ---
 
@@ -25,11 +25,13 @@ library(knitr)
 plotTrend = function(data,x,y,sort=T,title=NULL){
   #function to create a boxplot comparing categorical and numeric columns
   data2=data 
+  #grabbing the selected columns
   if (sort) data2$x=forcats::fct_reorder(as.character(data[[x]]),data[[y]],.fun=median)
   if (!sort) data2$x=as.character(data2[[x]])
   data2$y=data2[[y]]
   yTitle = trimws(gsub('([[:upper:]])', ' \\1', y))
   xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
+  #plotting
   ggplot2::ggplot(data=data2,aes(x=x,y=y)) +
     geom_boxplot(aes(fill=x)) +
     coord_flip() +
@@ -44,17 +46,20 @@ plotTrend = function(data,x,y,sort=T,title=NULL){
 plotSurvey = function(data,x,y,title=NULL){
   #function to create a text plot comparing survey data
   data2=data 
+  #grabbing the selected columns
   data2$x=forcats::fct_reorder(data[[x]],data[[y]],.fun=median)
   data2$y=as.character(data2[[y]])
+  #titles
   yTitle = trimws(gsub('([[:upper:]])', ' \\1', y))
   xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
+  #calculating counts and percentages
   data2 = data2 %>% group_by(x,y)  %>%
     summarise(count=n()) %>%
     group_by(x) %>%
     mutate(perc=count/sum(count)) %>%
     ungroup() %>%
     mutate(color = ifelse(y>=3,-perc,perc))
-  
+  #plotting
   ggplot2::ggplot(data=data2,aes(x=x,y=y,size=perc,label=percent(perc,1))) +
     geom_text(aes(color=color)) +
     coord_flip() +
@@ -72,6 +77,7 @@ plotAttritionBars = function(data,x,sort=T,title=NULL){
   data2=data 
   data2$x=as.character(data[[x]])
   xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
+  #calculating percentange and filtering attrition = yes
   data2 = data2 %>% 
     group_by(x,Attrition)  %>%
     summarise(count=n()) %>%
@@ -81,7 +87,7 @@ plotAttritionBars = function(data,x,sort=T,title=NULL){
     ungroup() %>%
     arrange(percent)
   if (sort) data2$x=  forcats::fct_reorder(data2$x,data2$percent)
-  
+  #plotting
   ggplot(data=data2,aes(x=x,y=percent,fill=percent))+
     geom_bar(stat='identity') +
     coord_flip()+
@@ -99,10 +105,12 @@ plotAttritionBars = function(data,x,sort=T,title=NULL){
 plotBars = function(data,x,y,title=NULL){
   #function to create box plots
   data2=data 
+  #grabbing selected columns
   data2$x=data2[[x]]
   data2$y=as.factor(data2[[y]])
-   yTitle = trimws(gsub('([[:upper:]])', ' \\1', y))
+  yTitle = trimws(gsub('([[:upper:]])', ' \\1', y))
   xTitle = trimws(gsub('([[:upper:]])', ' \\1', x))
+  #calculating percentage
   data2 = data2 %>% 
     group_by(x,y)  %>%
     summarise(count=n()) %>%
@@ -111,7 +119,7 @@ plotBars = function(data,x,y,title=NULL){
     ungroup() %>%
     arrange(percent) %>%
     mutate(y=forcats::fct_rev(y))
-  
+  #plotting
   ggplot2::ggplot(data=data2,aes(x=x,fill=y,y=percent)) +
     geom_col(stat='individual') +
     coord_flip() +
@@ -127,9 +135,9 @@ plotBars = function(data,x,y,title=NULL){
 # Reading  Data Source
 
 ```{r read}
+#reading data soure and fixing variables class
 dataOri=read.xlsx('data/CaseStudy2-data.xlsx',sheet=1) %>%
   mutate(EmployeeNumber = as.character(EmployeeNumber))
-
 ```
 
 # Transformation
@@ -171,13 +179,12 @@ arrange(filter(data.cor, value > .7 & value < 1), desc(value))
 
 ```{r  fig.height=7, fig.width=8}
 #find group with statistical difference
-
 colNum = names(which(sapply(data,is.numeric)))
-
+#melging data so ggplot is happy
 temp=reshape2::melt(data,id.vars='Attrition',measure.vars=colNum) %>%
   group_by(variable) %>%
   mutate(density = dnorm(value, mean(value), sd(value))) %>% ungroup()
-
+#plotting
 ggplot(data=temp,aes(x=value))+
   geom_histogram(aes(y=..density..),fill='#cccccc',bins = 20) +
   geom_line(aes(y = density),   colour = "red") +
@@ -197,7 +204,6 @@ Following Variable have been transformed with Log function to fit a normal distr
 #Testing the Log
 colsToLog = c('MonthlyIncome','TotalWorkingYears','YearsAtCompany','YearsInCurrentRole','YearsSinceLastPromotion','YearsWithCurrManager')
 temp$log = log(temp$value +.01)
-
 #plot of logged values
 ggplot(data=filter(temp,variable %in% colsToLog),aes(x=log))+
   geom_histogram(aes(y=..density..),fill='lightblue',bins = 20) +
@@ -213,21 +219,20 @@ colsLog = paste0(colsToLog,'_log')
 dataLog=mutate_at(data,colsToLog,.funs=funs(log=log(. + 0.01))) %>% select(-colsToLog)
 
 ```
-
 ### Columns with different mean across Attrition 
 
 Following variables have a statisticall significant difference mean between Attrition and Non-Attrition
 
-
 ```{r}
 ttestOut=data.frame(col=as.character(),pValue=as.numeric())
 colNum = names(which(sapply(dataLog,is.numeric)))
+#spanning the columns to checking the ones that fail the Ho
 for (col in colNum){
   test=t.test(dataLog[dataLog$Attrition=='Yes',col],dataLog[dataLog$Attrition=='No',col]
               ,alternative = 'two.sided',var.equal=F)
   if(test$p.value<0.01) ttestOut = rbind(ttestOut,data.frame(col=col,pValue=test$p.value))
 }
-
+#melting and plotting
 temp=reshape2::melt(dataLog,id.vars='Attrition',measure.vars=ttestOut$col)
 ggplot(data=temp,aes(x=Attrition,y=value,fill=Attrition))+
   geom_boxplot() +
@@ -396,7 +401,6 @@ plotAttritionBars(data,'OverTime',sort=F)
     
 - Factor 2: Age
     + Younger employees are more flexible (single) and less likely to be tied to a job
-    + Leads to higher attrition
 
 - Factor 3: Intrinsic
     + Low job involvement, satisfaction, and overtime leads to higher attrition
